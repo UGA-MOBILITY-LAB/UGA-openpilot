@@ -33,3 +33,9 @@ bool longitudinal_brake_checks(int desired_brake, const LongitudinalLimits limit
   violation |= desired_brake > limits.max_brake;
   return violation;
 }
+
+// OPGM variables
+bool longitudinal_interceptor_checks(const CANPacket_t *msg) {
+  bool interceptor_active = msg->data[0] || msg->data[1] || msg->data[2] || msg->data[3];
+  return (!get_longitudinal_allowed() || brake_pressed_prev) && interceptor_active;
+}

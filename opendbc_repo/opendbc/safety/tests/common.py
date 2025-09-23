@@ -41,12 +41,18 @@ def make_msg(bus, addr, length=8, dat=None):
 
 
 class CANPackerSafety(CANPacker):
-  def make_can_msg_safety(self, name_or_addr, bus, values, fix_checksum=None):
+  def make_can_msg_panda(self, name_or_addr, bus, values, fix_checksum=None):
     msg = self.make_can_msg(name_or_addr, bus, values)
     if fix_checksum is not None:
       msg = fix_checksum(msg)
     addr, dat, bus = msg
     return libsafety_py.make_CANPacket(addr, bus, dat)
+
+  def make_can_msg_safety(self, name_or_addr, bus, values, fix_checksum=None):
+    return self.make_can_msg_panda(name_or_addr, bus, values, fix_checksum)
+
+
+CANPackerPanda = CANPackerSafety
 
 
 def add_regen_tests(cls):
@@ -131,6 +137,14 @@ class SafetyTestBase(unittest.TestCase):
       self._reset_safety_hooks()
       self.assertEqual(meas_min_func(), 0)
       self.assertEqual(meas_max_func(), 0)
+
+
+class PandaSafetyTestBase(SafetyTestBase):
+  @classmethod
+  def setUpClass(cls):
+    if cls.__name__ == "PandaSafetyTestBase":
+      cls.safety = None
+      raise unittest.SkipTest
 
 
 class LongitudinalAccelSafetyTest(SafetyTestBase, abc.ABC):
@@ -886,7 +900,8 @@ class SafetyTest(SafetyTestBase):
             if {attr, current_test}.issubset({'TestVolkswagenPqSafety', 'TestVolkswagenPqStockSafety', 'TestVolkswagenPqLongSafety'}):
               continue
             if {attr, current_test}.issubset({'TestGmCameraSafety', 'TestGmCameraLongitudinalSafety', 'TestGmAscmSafety',
-                                              'TestGmCameraEVSafety', 'TestGmCameraLongitudinalEVSafety', 'TestGmAscmEVSafety'}):
+                                              'TestGmCameraEVSafety', 'TestGmCameraLongitudinalEVSafety', 'TestGmAscmEVSafety',
+                                              'TestGmInterceptorSafety', 'TestGmCcLongitudinalSafety'}):
               continue
             if attr.startswith('TestFord') and current_test.startswith('TestFord'):
               continue
@@ -1125,3 +1140,64 @@ class CarSafetyTest(SafetyTest):
     self.safety.safety_tick_current_safety_config()
     self.assertFalse(self.safety.get_controls_allowed())
     self.assertFalse(self.safety.safety_config_valid())
+
+
+# OPGM variables
+class GasInterceptorSafetyTest(PandaSafetyTestBase):
+
+  INTERCEPTOR_THRESHOLD = 0
+
+  cnt_gas_cmd = 0
+  cnt_user_gas = 0
+
+  packer: CANPackerPanda
+
+  @classmethod
+  def setUpClass(cls):
+    if cls.__name__ == "GasInterceptorSafetyTest" or cls.__name__.endswith("Base"):
+      cls.safety = None
+      raise unittest.SkipTest
+
+  def _interceptor_gas_cmd(self, gas: int):
+    values: dict[str, float | int] = {"COUNTER_PEDAL": self.__class__.cnt_gas_cmd & 0xF}
+    if gas > 0:
+      values["GAS_COMMAND"] = gas * 255.
+      values["GAS_COMMAND2"] = gas * 255.
+    self.__class__.cnt_gas_cmd += 1
+    return self.packer.make_can_msg_panda("GAS_COMMAND", 0, values)
+
+  def _interceptor_user_gas(self, gas: int):
+    values = {"INTERCEPTOR_GAS": gas, "INTERCEPTOR_GAS2": gas,
+              "COUNTER_PEDAL": self.__class__.cnt_user_gas}
+    self.__class__.cnt_user_gas += 1
+    return self.packer.make_can_msg_panda("GAS_SENSOR", 0, values)
+
+  # Skip non-interceptor user gas tests
+  def test_prev_gas(self):
+    pass
+
+  def test_no_disengage_on_gas(self):
+    pass
+
+  def test_no_disengage_on_gas_interceptor(self):
+    for g in range(0x1000):
+      self._rx(self._interceptor_user_gas(0))
+      self.safety.set_controls_allowed(True)
+      self._rx(self._interceptor_user_gas(g))
+      self.assertTrue(self.safety.get_controls_allowed(), g)
+
+  def test_allow_engage_with_gas_interceptor_pressed(self):
+    self._rx(self._interceptor_user_gas(0x1000))
+    self.safety.set_controls_allowed(True)
+    self._rx(self._interceptor_user_gas(0x1000))
+    self.assertTrue(self.safety.get_controls_allowed())
+
+  def test_gas_interceptor_safety_check(self):
+    for gas in np.arange(0, 4000, 100):
+      for controls_allowed in [True, False]:
+        self.safety.set_controls_allowed(controls_allowed)
+        if controls_allowed:
+          send = True
+        else:
+          send = gas == 0
+        self.assertEqual(send, self._tx(self._interceptor_gas_cmd(gas)))
