@@ -32,6 +32,9 @@ class FrogPilotEvents:
     else:
       self.max_acceleration = 0
 
+    if self.frogpilot_planner.frogpilot_vcruise.forcing_stop:
+      self.events.add(FrogPilotEventName.forcingStop)
+
     if self.error_log.is_file():
       self.events.add(FrogPilotEventName.openpilotCrashed)
 
