@@ -155,7 +155,17 @@ class FrogPilotVariables:
 
     toggle.tuning_level = self.params.get("TuningLevel") if self.params.get_bool("TuningLevelConfirmed") else TUNING_LEVELS["ADVANCED"]
 
+    stock_colors_json = (STOCK_THEME_PATH / "colors/colors.json")
+    self.stock_colors = json.loads(stock_colors_json.read_text()) if stock_colors_json.is_file() else {}
+
     self.update()
+
+  def get_color(self, key, theme_colors):
+    for source in (theme_colors, self.stock_colors):
+      color = source.get(key)
+      if isinstance(color, dict):
+        return f"#{color.get('alpha', 255):02X}{color.get('red', 255):02X}{color.get('green', 255):02X}{color.get('blue', 255):02X}"
+    return "#FFFFFFFF"
 
   def get_value(self, key, cast=bool, condition=True, conversion=None, default=None, min=None, max=None):
     if not condition or (self.frogpilot_toggles.tuning_level < self.tuning_levels.get(key, 0)):
@@ -351,6 +361,22 @@ class FrogPilotVariables:
     toggle.traffic_mode_jerk_speed = [self.get_value("TrafficJerkSpeed", cast=float, condition=toggle.custom_personalities, conversion=0.01, min=JERK_MIN_RAW * 0.01, max=JERK_MAX_RAW * 0.01), toggle.aggressive_jerk_speed]
     toggle.traffic_mode_jerk_speed_decrease = [self.get_value("TrafficJerkSpeedDecrease", cast=float, condition=toggle.custom_personalities, conversion=0.01, min=JERK_MIN_RAW * 0.01, max=JERK_MAX_RAW * 0.01), toggle.aggressive_jerk_speed_decrease]
     toggle.traffic_mode_follow = [self.get_value("TrafficFollow", cast=float, condition=toggle.custom_personalities, min=TRAFFIC_FOLLOW_MIN, max=MAX_T_FOLLOW), toggle.aggressive_follow]
+
+    custom_themes = self.get_value("CustomThemes")
+    toggle.color_scheme = self.get_value("ColorScheme", cast=None, condition=custom_themes, default="stock")
+    theme_colors = json.loads(THEME_COLORS_PATH.read_text()) if THEME_COLORS_PATH.is_file() else {}
+    toggle.lane_lines_color = self.get_color("LaneLines", theme_colors)
+    toggle.lead_marker_color = self.get_color("LeadMarker", theme_colors)
+    toggle.path_color = self.get_color("Path", theme_colors)
+    toggle.path_edges_color = self.get_color("PathEdge", theme_colors)
+    toggle.sidebar_color1 = self.get_color("Sidebar1", theme_colors)
+    toggle.sidebar_color2 = self.get_color("Sidebar2", theme_colors)
+    toggle.sidebar_color3 = self.get_color("Sidebar3", theme_colors)
+    toggle.distance_icons = self.get_value("DistanceIconPack", cast=None, condition=custom_themes, default="stock")
+    toggle.icon_pack = self.get_value("IconPack", cast=None, condition=custom_themes, default="stock")
+    toggle.signal_icons = self.get_value("SignalAnimation", cast=None, condition=custom_themes, default="stock")
+    toggle.sound_pack = self.get_value("SoundPack", cast=None, condition=custom_themes, default="stock")
+    toggle.wheel_image = self.get_value("WheelIcon", cast=None, condition=custom_themes, default="stock")
 
     custom_ui = self.get_value("CustomUI")
     toggle.acceleration_path = toggle.openpilot_longitudinal and (self.get_value("AccelerationPath", condition=custom_ui))
