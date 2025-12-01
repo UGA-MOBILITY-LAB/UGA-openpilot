@@ -114,6 +114,9 @@ _services: dict[str, tuple] = {
   "frogpilotRadarState": (True, 20., 5),
   "frogpilotSelfdriveState": (True, 100., 10),
   "frogpilotUI": (True, 0., 1),
+  "mapdExtendedOut": (True, 1., 1, QueueSize.MEDIUM),
+  "mapdIn": (True, 1., 1, QueueSize.MEDIUM),
+  "mapdOut": (True, 20., 20, QueueSize.MEDIUM),
 }
 SERVICE_LIST = {name: Service(*vals) for
                 idx, (name, vals) in enumerate(_services.items())}
