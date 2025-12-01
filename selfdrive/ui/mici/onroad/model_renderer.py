@@ -220,7 +220,7 @@ class ModelRenderer(Widget):
 
   def _update_experimental_gradient(self):
     """Pre-calculate experimental mode gradient colors"""
-    if not self._experimental_mode:
+    if not (self._experimental_mode or frogpilot_ui_state.frogpilot_toggles.acceleration_path):
       return
 
     max_len = min(len(self._path.projected_points) // 2, len(self._acceleration_x))
@@ -332,7 +332,7 @@ class ModelRenderer(Widget):
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
     self._blend_filter.update(int(allow_throttle))
 
-    if self._experimental_mode:
+    if self._experimental_mode or frogpilot_ui_state.frogpilot_toggles.acceleration_path:
       # Draw with acceleration coloring
       if ui_state.status == UIStatus.DISENGAGED:
         draw_polygon(self._rect, self._path.projected_points, rl.Color(0, 0, 0, 90))
