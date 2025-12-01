@@ -339,6 +339,7 @@ class FrogPilotVariables:
     advanced_lateral_tuning = self.get_value("AdvancedLateralTune")
     toggle.force_auto_tune = self.get_value("ForceAutoTune", condition=advanced_lateral_tuning and not toggle.has_auto_tune and toggle.is_torque_car and not toggle.is_angle_car)
     toggle.force_auto_tune_off = self.get_value("ForceAutoTuneOff", condition=advanced_lateral_tuning and toggle.has_auto_tune and toggle.is_torque_car and not toggle.is_angle_car)
+    toggle.force_torque_controller = self.get_value("ForceTorqueController", condition=advanced_lateral_tuning and not toggle.is_torque_car and not toggle.is_angle_car)
     toggle.steerActuatorDelay = self.get_value("SteerDelay", cast=float, condition=advanced_lateral_tuning, default=toggle.steer_actuator_delay, min=0.01, max=1.0)
     toggle.use_custom_steerActuatorDelay = bool(round(toggle.steerActuatorDelay, 2) != round(toggle.steer_actuator_delay, 2))
     toggle.friction = self.get_value("SteerFriction", cast=float, condition=advanced_lateral_tuning and toggle.is_torque_car, default=toggle.default_friction, min=0, max=1)
@@ -465,7 +466,7 @@ class FrogPilotVariables:
     toggle.adjacent_path_metrics = self.get_value("AdjacentPathMetrics", condition=developer_metrics) or toggle.debug_mode
     toggle.lead_info = self.get_value("LeadInfo", condition=developer_metrics) or toggle.debug_mode
     toggle.numerical_temp = self.get_value("NumericalTemp", condition=developer_metrics) or toggle.debug_mode
-    toggle.fahrenheit = self.get_value("Fahrenheit", condition=toggle.numerical_temp or toggle.debug_mode)
+    toggle.fahrenheit = self.get_value("Fahrenheit", condition=toggle.numerical_temp and not toggle.debug_mode)
     toggle.cpu_metrics = self.get_value("ShowCPU", condition=developer_metrics) or toggle.debug_mode
     toggle.gpu_metrics = self.get_value("ShowGPU", condition=developer_metrics and not toggle.debug_mode)
     toggle.ip_metrics = self.get_value("ShowIP", condition=developer_metrics)
