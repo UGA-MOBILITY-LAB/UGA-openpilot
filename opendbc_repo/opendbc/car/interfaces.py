@@ -19,7 +19,7 @@ from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.common.simple_kalman import KF1D, get_kalman_gain
 from opendbc.car.hyundai.values import CAR as HYUNDAI, HyundaiFlags, HyundaiFrogPilotSafetyFlags
 from opendbc.car.mock.values import CAR as MOCK
-from opendbc.car.toyota.values import CAR as TOYOTA, ToyotaFrogPilotFlags
+from opendbc.car.toyota.values import CAR as TOYOTA, NO_DSU_CAR, ToyotaFrogPilotFlags
 from opendbc.car.values import PLATFORMS
 from opendbc.can import CANParser
 from openpilot.common.params import Params
@@ -193,6 +193,11 @@ class CarInterfaceBase(ABC):
           fp_ret.safetyConfigs[-1].safetyParam |= HyundaiFrogPilotSafetyFlags.HAS_LDA_BUTTON.value
 
       elif platform in TOYOTA:
+        if 0x2AA in fingerprint[0] and candidate in NO_DSU_CAR:
+          fp_ret.flags |= ToyotaFrogPilotFlags.RADAR_CAN_FILTER.value
+
+        if 0x2FF in fingerprint[0] or (0x2AA in fingerprint[0] and candidate in NO_DSU_CAR):
+          fp_ret.flags |= ToyotaFrogPilotFlags.SMART_DSU.value
 
     return fp_ret
 
