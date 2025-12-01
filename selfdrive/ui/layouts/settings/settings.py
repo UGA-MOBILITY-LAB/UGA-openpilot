@@ -12,6 +12,7 @@ from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.wifi_manager import WifiManager
 from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets.list_view import ITEM_TEXT_FONT_SIZE
 from openpilot.system.ui.widgets.network import NetworkUI
 
 from openpilot.frogpilot.system.ui.widgets import FrogPilotWidget
@@ -19,7 +20,6 @@ from openpilot.frogpilot.ui.layouts.settings.frogpilot import FrogPilotPanel
 
 # Constants
 SIDEBAR_WIDTH = 500
-CLOSE_BTN_SIZE = 200
 CLOSE_ICON_SIZE = 70
 NAV_BTN_HEIGHT = 110
 PANEL_MARGIN = 50
@@ -33,6 +33,10 @@ TEXT_NORMAL = rl.Color(128, 128, 128, 255)
 TEXT_SELECTED = rl.WHITE
 
 # FrogPilot variables
+CLOSE_BTN_HEIGHT = 125
+CLOSE_BTN_WIDTH = 300
+SIDEBAR_MARGIN = 100
+SIDEBAR_PADDING = 10
 
 
 class PanelType(IntEnum):
@@ -102,39 +106,38 @@ class SettingsLayout(Widget):
   def _draw_sidebar(self, rect: rl.Rectangle):
     rl.draw_rectangle_rec(rect, SIDEBAR_COLOR)
 
-    # Close button
+    # Back button
     close_btn_rect = rl.Rectangle(
-      rect.x + (rect.width - CLOSE_BTN_SIZE) / 2, rect.y + 60, CLOSE_BTN_SIZE, CLOSE_BTN_SIZE
+      rect.x + rect.width - SIDEBAR_MARGIN - CLOSE_BTN_WIDTH,
+      rect.y + PANEL_MARGIN + SIDEBAR_PADDING,
+      CLOSE_BTN_WIDTH, CLOSE_BTN_HEIGHT
     )
 
     pressed = (rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_LEFT) and
                rl.check_collision_point_rec(rl.get_mouse_position(), close_btn_rect))
     close_color = CLOSE_BTN_PRESSED if pressed else CLOSE_BTN_COLOR
-    rl.draw_rectangle_rounded(close_btn_rect, 1.0, 20, close_color)
+    rl.draw_rectangle_rounded(close_btn_rect, 0.4, 20, close_color)
 
-    icon_color = rl.Color(255, 255, 255, 255) if not pressed else rl.Color(220, 220, 220, 255)
-    icon_dest = rl.Rectangle(
-      close_btn_rect.x + (close_btn_rect.width - self._close_icon.width) / 2,
-      close_btn_rect.y + (close_btn_rect.height - self._close_icon.height) / 2,
-      self._close_icon.width,
-      self._close_icon.height,
+    back_text = tr("← Back")
+    text_size = measure_text_cached(self._font_medium, back_text, ITEM_TEXT_FONT_SIZE)
+    text_pos = rl.Vector2(
+      close_btn_rect.x + (close_btn_rect.width - text_size.x) / 2,
+      close_btn_rect.y + (close_btn_rect.height - text_size.y) / 2,
     )
-    rl.draw_texture_pro(
-      self._close_icon,
-      rl.Rectangle(0, 0, self._close_icon.width, self._close_icon.height),
-      icon_dest,
-      rl.Vector2(0, 0),
-      0,
-      icon_color,
-    )
+    rl.draw_text_ex(self._font_medium, back_text, text_pos, ITEM_TEXT_FONT_SIZE, 0, rl.WHITE)
 
     # Store close button rect for click detection
     self._close_btn_rect = close_btn_rect
 
     # Navigation buttons
-    y = rect.y + 300
-    for panel_type, panel_info in self._panels.items():
-      button_rect = rl.Rectangle(rect.x + 50, y, rect.width - 150, NAV_BTN_HEIGHT)
+    visible_panels = [(panel_type, panel_info) for panel_type, panel_info in self._panels.items() if self._panel_visible(panel_info)]
+    nav_top = close_btn_rect.y + CLOSE_BTN_HEIGHT
+    nav_bottom = rect.y + rect.height - PANEL_MARGIN
+    nav_height = nav_bottom - nav_top
+    btn_height = nav_height / len(visible_panels)
+    y = nav_top
+    for panel_type, panel_info in visible_panels:
+      button_rect = rl.Rectangle(rect.x + PANEL_MARGIN, y, rect.width - PANEL_MARGIN - SIDEBAR_MARGIN, btn_height)
 
       # Button styling
       is_selected = panel_type == self._current_panel
@@ -150,7 +153,7 @@ class SettingsLayout(Widget):
       # Store button rect for click detection
       panel_info.button_rect = button_rect
 
-      y += NAV_BTN_HEIGHT
+      y += btn_height
 
   def _draw_current_panel(self, rect: rl.Rectangle):
     rl.draw_rectangle_rounded(
