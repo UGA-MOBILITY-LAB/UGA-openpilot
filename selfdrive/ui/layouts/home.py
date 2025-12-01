@@ -1,8 +1,10 @@
 import time
 import pyray as rl
 from collections.abc import Callable
+from datetime import datetime
 from enum import IntEnum
 from openpilot.common.params import Params
+from openpilot.common.time_helpers import system_time_valid
 from openpilot.selfdrive.ui.widgets.offroad_alerts import UpdateAlert, OffroadAlert
 from openpilot.selfdrive.ui.widgets.exp_mode_button import ExperimentalModeButton
 from openpilot.selfdrive.ui.widgets.prime import PrimeWidget
@@ -12,6 +14,7 @@ from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.multilang import tr, trn
 from openpilot.system.ui.widgets.label import gui_label
 from openpilot.system.ui.widgets import Widget
+from openpilot.system.version import get_version
 
 from openpilot.frogpilot.ui.drive_stats import DriveStatsLayout
 
@@ -65,6 +68,8 @@ class HomeLayout(Widget):
 
     # FrogPilot variables
     self._drive_stats_widget = DriveStatsLayout()
+
+    self._date_text = ""
 
   def show_event(self):
     self._exp_mode_button.show_event()
@@ -188,6 +193,14 @@ class HomeLayout(Widget):
     gui_label(version_rect, self._version_text, 48, rl.WHITE, alignment=rl.GuiTextAlignment.TEXT_ALIGN_RIGHT)
 
     # FrogPilot variables
+    if self._date_text:
+      date_x = self.header_rect.x
+      if self.alert_count > 0:
+        date_x += self.alert_notif_rect.width + SPACING
+      if self.update_available:
+        date_x += self.update_notif_rect.width + SPACING
+      date_rect = rl.Rectangle(date_x, self.header_rect.y, self.header_rect.width - (date_x - self.header_rect.x), self.header_rect.height)
+      gui_label(date_rect, self._date_text, 48, rl.WHITE, alignment=rl.GuiTextAlignment.TEXT_ALIGN_LEFT)
 
   def _render_home_content(self):
     self._render_left_column()
@@ -237,8 +250,9 @@ class HomeLayout(Widget):
     self._prev_alerts_present = alerts_present
 
     # FrogPilot variables
+    self._date_text = datetime.now().strftime("%A, %B %-d") if system_time_valid() else ""
 
   def _get_version_text(self) -> str:
-    brand = "openpilot"
-    description = self.params.get("UpdaterCurrentDescription")
-    return f"{brand} {description}" if description else brand
+    brand = "FrogPilot"
+    version = get_version()
+    return f"{brand} v{version[:14].strip()}"
