@@ -1201,3 +1201,5 @@ class GasInterceptorSafetyTest(PandaSafetyTestBase):
         else:
           send = gas == 0
         self.assertEqual(send, self._tx(self._interceptor_gas_cmd(gas)))
+
+# FrogPilot variables

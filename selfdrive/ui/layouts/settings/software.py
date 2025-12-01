@@ -201,3 +201,5 @@ class SoftwareLayout(Widget):
       self._branch_dialog = None
 
     gui_app.set_modal_overlay(self._branch_dialog, callback=handle_selection)
+
+  # FrogPilot variables

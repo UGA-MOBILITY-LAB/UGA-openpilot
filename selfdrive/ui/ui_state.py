@@ -12,6 +12,8 @@ from openpilot.selfdrive.ui.lib.prime_state import PrimeState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.hardware import HARDWARE, PC
 
+from openpilot.frogpilot.ui.frogpilot_ui_state import frogpilot_ui_state
+
 BACKLIGHT_OFFROAD = 65 if HARDWARE.get_device_type() == "mici" else 50
 
 
@@ -111,6 +113,9 @@ class UIState:
     if time.monotonic() - self._param_update_time > 5.0:
       self.update_params()
     device.update()
+
+    # FrogPilot variables
+    frogpilot_ui_state.update()
 
   def _update_state(self) -> None:
     # Handle panda states updates
