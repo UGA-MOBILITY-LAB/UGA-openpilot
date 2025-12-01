@@ -43,7 +43,8 @@ def update_checks(now, theme_manager, thread_manager, params, params_memory, fro
 def on_toggles_updated(theme_manager, thread_manager, time_validated, sm, params, frogpilot_toggles):
   new_toggles = frogpilot_variables.get_frogpilot_toggles(sm)
 
-  theme_manager.update_active_theme(frogpilot_toggles)
+  theme_manager.theme_updated = False
+  theme_manager.update_active_theme(time_validated, new_toggles)
 
   if time_validated:
     thread_manager.run_with_lock(frogpilot_backups.backup_toggles, (params))
@@ -112,13 +113,14 @@ def frogpilot_thread():
     if rate_keeper.frame % ASSET_CHECK_RATE == 0:
       check_assets(theme_manager, thread_manager, params_memory, frogpilot_toggles)
 
-    if sm.updated["frogpilotUI"]:
+    if sm.updated["frogpilotUI"] or theme_manager.theme_updated:
       frogpilot_toggles = on_toggles_updated(theme_manager, thread_manager, time_validated, sm, params, frogpilot_toggles)
 
     run_update_checks |= now.second == 0 and (now.minute % 60 == 0 or (now.minute % 5 == 0 and frogpilot_utilities.is_FrogsGoMoo()))
     run_update_checks &= time_validated
 
     if run_update_checks:
+      theme_manager.update_active_theme(time_validated, frogpilot_toggles)
       thread_manager.run_with_lock(update_checks, (now, theme_manager, thread_manager, params, params_memory, frogpilot_toggles))
 
       run_update_checks = False
@@ -126,6 +128,8 @@ def frogpilot_thread():
       time_validated = system_time_valid()
       if not time_validated:
         continue
+
+      theme_manager.update_active_theme(time_validated, frogpilot_toggles)
 
       thread_manager.run_with_lock(frogpilot_backups.backup_toggles, (params, True))
       thread_manager.run_with_lock(send_stats, (frogpilot_planner.gps_position, params, frogpilot_toggles))

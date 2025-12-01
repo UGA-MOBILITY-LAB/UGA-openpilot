@@ -34,8 +34,8 @@ class FrogPilotUIState:
   def update(self) -> None:
     pass
 
-  def update_toggles(self, started=False) -> None:
-    self.frogpilot_toggles = self.frogpilot_variables.update(started=started)
+  def update_toggles(self, started=False, holiday_theme="stock") -> None:
+    self.frogpilot_toggles = self.frogpilot_variables.update(holiday_theme=holiday_theme, started=started)
     self._publish()
 
 
