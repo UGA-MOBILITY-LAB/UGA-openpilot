@@ -21,9 +21,13 @@ def check_assets(theme_manager, thread_manager, params_memory, frogpilot_toggles
     if asset_to_download:
       thread_manager.run_with_lock(theme_manager.download_theme, (asset_type, asset_to_download, asset_param, frogpilot_toggles))
 
-def transition_offroad(gps_position, thread_manager, time_validated, sm, params, frogpilot_toggles):
+def transition_offroad(gps_position, theme_manager, thread_manager, time_validated, sm, params, frogpilot_toggles):
   if frogpilot_toggles.lock_doors_timer != 0:
     thread_manager.run_with_lock(frogpilot_utilities.lock_doors, (frogpilot_toggles.lock_doors_timer, sm, params), report=False)
+
+  if frogpilot_toggles.random_themes:
+    theme_manager.update_active_theme(time_validated, frogpilot_toggles, randomize_theme=True)
+
   if time_validated:
     thread_manager.run_with_lock(send_stats, (gps_position, params, frogpilot_toggles))
 
@@ -47,8 +51,11 @@ def update_checks(now, theme_manager, thread_manager, params, params_memory, fro
 def on_toggles_updated(theme_manager, thread_manager, time_validated, sm, params, frogpilot_toggles):
   new_toggles = frogpilot_variables.get_frogpilot_toggles(sm)
 
+  randomize_theme = new_toggles.holiday_themes != frogpilot_toggles.holiday_themes
+  randomize_theme |= new_toggles.random_themes != frogpilot_toggles.random_themes
+
   theme_manager.theme_updated = False
-  theme_manager.update_active_theme(time_validated, new_toggles)
+  theme_manager.update_active_theme(time_validated, new_toggles, randomize_theme=randomize_theme)
 
   if time_validated:
     thread_manager.run_with_lock(frogpilot_backups.backup_toggles, (params))
@@ -93,7 +100,7 @@ def frogpilot_thread():
     started = sm["deviceState"].started
 
     if not started and started_previously:
-      transition_offroad(frogpilot_planner.gps_position, thread_manager, time_validated, sm, params, frogpilot_toggles)
+      transition_offroad(frogpilot_planner.gps_position, theme_manager, thread_manager, time_validated, sm, params, frogpilot_toggles)
 
       run_update_checks = True
     elif started and not started_previously:
