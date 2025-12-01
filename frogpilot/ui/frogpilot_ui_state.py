@@ -15,7 +15,13 @@ class FrogPilotUIState:
   def _initialize(self) -> None:
     self.params = Params()
 
-    self.pm = messaging.PubMaster([])
+    self.pm = messaging.PubMaster(["frogpilotUI"])
+
+    self._publish()
+
+  def _publish(self) -> None:
+    msg = messaging.new_message("frogpilotUI")
+    self.pm.send("frogpilotUI", msg)
 
   def update(self) -> None:
     pass
