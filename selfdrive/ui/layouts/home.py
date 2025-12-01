@@ -16,7 +16,9 @@ from openpilot.system.ui.widgets.label import gui_label
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.version import get_version
 
+from openpilot.frogpilot.common import frogpilot_utilities
 from openpilot.frogpilot.ui.drive_stats import DriveStatsLayout
+from openpilot.frogpilot.ui.frogpilot_ui_state import frogpilot_ui_state
 
 HEADER_HEIGHT = 80
 HEAD_BUTTON_FONT_SIZE = 40
@@ -254,5 +256,6 @@ class HomeLayout(Widget):
 
   def _get_version_text(self) -> str:
     brand = "FrogPilot"
+    model_name = frogpilot_utilities.clean_model_name(frogpilot_ui_state.frogpilot_toggles.model_name)
     version = get_version()
-    return f"{brand} v{version[:14].strip()}"
+    return f"{brand} v{version[:14].strip()} - {model_name}"
