@@ -4,7 +4,7 @@ from openpilot.selfdrive.selfdrived.events import ET, EVENT_NAME, FROGPILOT_EVEN
 from openpilot.frogpilot.common import frogpilot_variables
 
 class FrogPilotEvents:
-  def __init__(self, FrogPilotPlanner):
+  def __init__(self, FrogPilotPlanner, error_log):
     self.frogpilot_planner = FrogPilotPlanner
 
     self.events = Events(frogpilot=True)
@@ -14,6 +14,8 @@ class FrogPilotEvents:
     self.max_acceleration = 0
 
     self.played_events = set()
+
+    self.error_log = error_log
 
   def update(self, long_control_active, sm, frogpilot_toggles):
     current_alert = sm["selfdriveState"].alertType
@@ -29,6 +31,9 @@ class FrogPilotEvents:
       self.max_acceleration = max(acceleration, self.max_acceleration)
     else:
       self.max_acceleration = 0
+
+    if self.error_log.is_file():
+      self.events.add(FrogPilotEventName.openpilotCrashed)
 
     self.startup_seen |= sm["frogpilotSelfdriveState"].alertText1 == frogpilot_toggles.startup_alert_top and sm["frogpilotSelfdriveState"].alertText2 == frogpilot_toggles.startup_alert_bottom
 

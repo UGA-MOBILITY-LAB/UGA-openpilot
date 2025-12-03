@@ -81,9 +81,13 @@ class Soundd:
     # FrogPilot variables
     self.frogpilot_toggles = frogpilot_variables.get_frogpilot_toggles()
 
+    self.openpilot_crashed_played = False
+
     self.auto_volume = 0
 
     self.previous_sound_pack = None
+
+    self.error_log = frogpilot_variables.ERROR_LOGS_PATH / "error.txt"
 
     self.update_frogpilot_sounds()
 
@@ -148,7 +152,10 @@ class Soundd:
       self.current_sound_frame = 0
 
   def get_audible_alert(self, sm):
-    if sm.updated['selfdriveState']:
+    if not self.openpilot_crashed_played and self.error_log.is_file():
+      self.update_alert(AudibleAlert.prompt)
+      self.openpilot_crashed_played = True
+    elif sm.updated['selfdriveState']:
       new_alert = sm['selfdriveState'].alertSound.raw
 
       # FrogPilot variables

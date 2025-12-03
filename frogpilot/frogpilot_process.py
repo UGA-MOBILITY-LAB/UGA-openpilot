@@ -25,7 +25,9 @@ def transition_offroad(gps_position, thread_manager, time_validated, sm, params,
   if time_validated:
     thread_manager.run_with_lock(send_stats, (gps_position, params, frogpilot_toggles))
 
-def transition_onroad():
+def transition_onroad(error_log):
+  if error_log.is_file():
+    error_log.unlink()
 
 def update_checks(now, theme_manager, thread_manager, params, params_memory, frogpilot_toggles, boot_run=False):
   while not (frogpilot_utilities.is_url_pingable("https://github.com") or frogpilot_utilities.is_url_pingable("https://gitlab.com")):
@@ -72,7 +74,11 @@ def frogpilot_thread():
   started_previously = False
   time_validated = False
 
-  frogpilot_planner = FrogPilotPlanner(theme_manager)
+  error_log = frogpilot_variables.ERROR_LOGS_PATH / "error.txt"
+  if error_log.is_file():
+    error_log.unlink()
+
+  frogpilot_planner = FrogPilotPlanner(error_log, theme_manager)
 
   while True:
     sm.update()
@@ -86,10 +92,10 @@ def frogpilot_thread():
 
       run_update_checks = True
     elif started and not started_previously:
-      frogpilot_planner = FrogPilotPlanner()
+      frogpilot_planner = FrogPilotPlanner(error_log)
       frogpilot_tracking = FrogPilotTracking(frogpilot_planner, frogpilot_toggles)
 
-      transition_onroad()
+      transition_onroad(error_log)
 
     if started and sm.updated["modelV2"]:
       frogpilot_planner.update(now, time_validated, sm, frogpilot_toggles)
