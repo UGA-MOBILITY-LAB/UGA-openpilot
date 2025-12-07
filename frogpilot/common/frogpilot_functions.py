@@ -6,6 +6,7 @@ from pathlib import Path
 
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.constants import CV
+from openpilot.common.params import Params
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.hardware import HARDWARE
 
@@ -71,6 +72,8 @@ def migrate_params_to_si(params):
 
 def frogpilot_boot_functions(params):
   migrate_params_to_si(params)
+
+  params_memory = Params(memory=True)
 
   def boot_thread():
     while not system_time_valid():
