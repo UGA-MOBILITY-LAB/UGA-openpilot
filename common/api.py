@@ -5,7 +5,9 @@ from datetime import datetime, timedelta, UTC
 from openpilot.system.hardware.hw import Paths
 from openpilot.system.version import get_version
 
-API_HOST = os.getenv('API_HOST', 'https://api.commadotai.com')
+from openpilot.frogpilot.common import frogpilot_variables
+
+API_HOST = os.getenv('API_HOST', f"https://api.{'konik.ai' if frogpilot_variables.KONIK_PATH.is_file() else 'commadotai.com'}")
 
 # name: jwt signature algorithm
 KEYS = {"id_rsa": "RS256",
