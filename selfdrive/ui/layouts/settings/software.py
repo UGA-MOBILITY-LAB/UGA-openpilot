@@ -8,7 +8,7 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, trn
 from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
-from openpilot.system.ui.widgets.list_view import button_item, text_item, ListItem
+from openpilot.system.ui.widgets.list_view import button_item, text_item, toggle_item, ListItem
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
@@ -65,6 +65,14 @@ class SoftwareLayout(Widget):
     self._waiting_for_updater = False
     self._waiting_start_ts: float = 0.0
 
+    # Automatic updates toggle
+    self._auto_updates_toggle = toggle_item(
+      lambda: tr("Automatically Update FrogPilot"),
+      lambda: tr("Automatically check for and download updates when the device is offroad."),
+      initial_state=ui_state.params.get_bool("AutomaticUpdates"),
+      callback=self._on_toggle_automatic_updates,
+    )
+
     # Branch switcher
     self._branch_btn = button_item(lambda: tr("Target Branch"), lambda: tr("SELECT"), callback=self._on_select_branch)
     self._branch_btn.set_visible(True)
@@ -74,6 +82,7 @@ class SoftwareLayout(Widget):
     self._scroller = Scroller([
       self._onroad_label,
       self._version_item,
+      self._auto_updates_toggle,
       self._download_btn,
       self._install_btn,
       self._branch_btn,
@@ -207,3 +216,5 @@ class SoftwareLayout(Widget):
     gui_app.set_modal_overlay(self._branch_dialog, callback=handle_selection)
 
   # FrogPilot variables
+  def _on_toggle_automatic_updates(self, state: bool):
+    ui_state.params.put_bool("AutomaticUpdates", state)
