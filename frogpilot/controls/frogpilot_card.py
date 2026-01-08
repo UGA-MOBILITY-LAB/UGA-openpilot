@@ -5,6 +5,7 @@ from openpilot.selfdrive.car.cruise import ButtonType
 from openpilot.selfdrive.selfdrived.events import EventName
 
 from openpilot.frogpilot.common import frogpilot_utilities, frogpilot_variables
+from openpilot.frogpilot.controls.lib.conditional_experimental_mode import CEStatus
 
 class FrogPilotCard:
   def __init__(self, CP, FPCP):
