@@ -5,13 +5,73 @@ import time
 from pathlib import Path
 
 from openpilot.common.basedir import BASEDIR
+from openpilot.common.constants import CV
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.hardware import HARDWARE
 
 from openpilot.frogpilot.common import frogpilot_utilities
 
 
-def frogpilot_boot_functions():
+def migrate_params_to_si(params):
+  if params.get_bool("ParamsMigratedToSI"):
+    return
+
+  is_metric = params.get_bool("IsMetric")
+
+  distance_factor = 1.0 if is_metric else CV.FOOT_TO_METER
+  distance_keys = (
+    "IncreasedStoppedDistance",
+    "IncreasedStoppedDistanceLowVisibility",
+    "IncreasedStoppedDistanceRain",
+    "IncreasedStoppedDistanceRainStorm",
+    "IncreasedStoppedDistanceSnow",
+    "LaneDetectionWidth",
+  )
+  for key in distance_keys:
+    value = params.get(key)
+    if value is not None and value != 0:
+      params.put(key, float(value) * distance_factor)
+
+  path_factor = (1.0 if is_metric else CV.FOOT_TO_METER) / 2.0
+  for key in ("PathWidth",):
+    value = params.get(key)
+    if value is not None and value != 0:
+      params.put(key, float(value) * path_factor)
+
+  small_distance_factor = (1.0 if is_metric else CV.INCH_TO_CM) / 200.0
+  for key in ("LaneLinesWidth", "RoadEdgesWidth"):
+    value = params.get(key)
+    if value is not None and value != 0:
+      params.put(key, float(value) * small_distance_factor)
+
+  speed_factor = CV.KPH_TO_MS if is_metric else CV.MPH_TO_MS
+  speed_keys = (
+    "CESignalSpeed",
+    "CESpeed",
+    "CESpeedLead",
+    "MinimumLaneChangeSpeed",
+    "Offset1",
+    "Offset2",
+    "Offset3",
+    "Offset4",
+    "Offset5",
+    "Offset6",
+    "Offset7",
+    "PauseAOLOnBrake",
+    "PauseLateralSpeed",
+    "SetSpeedOffset",
+  )
+  for key in speed_keys:
+    value = params.get(key)
+    if value is not None and value != 0:
+      params.put(key, float(value) * speed_factor)
+
+  params.put_bool("ParamsMigratedToSI", True)
+
+
+def frogpilot_boot_functions(params):
+  migrate_params_to_si(params)
+
   def boot_thread():
     while not system_time_valid():
       print("Waiting for system time to become valid...")

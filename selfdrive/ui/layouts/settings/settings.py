@@ -14,6 +14,9 @@ from openpilot.system.ui.lib.wifi_manager import WifiManager
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.network import NetworkUI
 
+from openpilot.frogpilot.system.ui.widgets import FrogPilotWidget
+from openpilot.frogpilot.ui.layouts.settings.frogpilot import FrogPilotPanel
+
 # Constants
 SIDEBAR_WIDTH = 500
 CLOSE_BTN_SIZE = 200
@@ -41,6 +44,7 @@ class PanelType(IntEnum):
   DEVELOPER = 5
 
   # FrogPilot variables
+  FROGPILOT = 6
 
 
 @dataclass
@@ -50,6 +54,7 @@ class PanelInfo:
   button_rect: rl.Rectangle = rl.Rectangle(0, 0, 0, 0)
 
   # FrogPilot variables
+  visible: bool | Callable[[], bool] = True
 
 
 class SettingsLayout(Widget):
@@ -62,16 +67,18 @@ class SettingsLayout(Widget):
     wifi_manager.set_active(False)
 
     # FrogPilot variables
+    frogpilot_panel = FrogPilotPanel()
 
     self._panels = {
       PanelType.DEVICE: PanelInfo(tr_noop("Device"), DeviceLayout()),
       PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUI(wifi_manager)),
       PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout()),
       PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayout()),
-      PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout()),
-      PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayout()),
+      #PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout()),
+      PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayout(), visible=frogpilot_panel.developer_panel_visible),
 
       # FrogPilot variables
+      PanelType.FROGPILOT: PanelInfo(tr_noop("FrogPilot"), frogpilot_panel),
     }
 
     self._font_medium = gui_app.font(FontWeight.MEDIUM)
@@ -158,13 +165,25 @@ class SettingsLayout(Widget):
   def _handle_mouse_release(self, mouse_pos: MousePos) -> None:
     # Check close button
     if rl.check_collision_point_rec(mouse_pos, self._close_btn_rect):
+      panel = self._panels[self._current_panel].instance
+      if isinstance(panel, FrogPilotWidget) and panel.handle_back():
+        return
+
       if self._close_callback:
         self._close_callback()
       return
 
     # Check navigation buttons
     for panel_type, panel_info in self._panels.items():
+      if not self._panel_visible(panel_info):
+        continue
+
       if rl.check_collision_point_rec(mouse_pos, panel_info.button_rect):
+        if panel_type == self._current_panel and isinstance(panel_info.instance, FrogPilotWidget):
+          panel_info.instance.hide_event()
+          panel_info.instance.show_event()
+          return
+
         self.set_current_panel(panel_type)
         return
 
@@ -183,3 +202,6 @@ class SettingsLayout(Widget):
     self._panels[self._current_panel].instance.hide_event()
 
   # FrogPilot variables
+  @staticmethod
+  def _panel_visible(panel_info: PanelInfo) -> bool:
+    return panel_info.visible() if callable(panel_info.visible) else panel_info.visible
