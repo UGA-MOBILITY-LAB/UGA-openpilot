@@ -13,7 +13,7 @@ from openpilot.frogpilot.controls.lib.weather_checker import WEATHER_CATEGORIES
 
 
 class FrogPilotTracking:
-  def __init__(self, frogpilot_planner):
+  def __init__(self, frogpilot_planner, frogpilot_toggles):
     self.params = frogpilot_planner.params
 
     self.frogpilot_events = frogpilot_planner.frogpilot_events
@@ -36,7 +36,7 @@ class FrogPilotTracking:
 
     self.model_name = frogpilot_utilities.clean_model_name(frogpilot_toggles.model_name)
 
-  def update(self, now, time_validated, sm):
+  def update(self, now, time_validated, sm, frogpilot_toggles):
     if time_validated:
       current_month = now.month
       if current_month != self.frogpilot_stats.get("Month"):

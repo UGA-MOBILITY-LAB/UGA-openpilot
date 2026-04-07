@@ -12,7 +12,7 @@ from openpilot.common.params import Params
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.hardware import HARDWARE
 
-from openpilot.frogpilot.common import frogpilot_utilities
+from openpilot.frogpilot.common import frogpilot_utilities, frogpilot_variables
 
 
 def migrate_params_to_si(params):
@@ -76,6 +76,8 @@ def frogpilot_boot_functions(params):
   migrate_params_to_si(params)
 
   params_memory = Params(memory=True)
+
+  frogpilot_variables.FrogPilotVariables()
 
   def boot_thread():
     while not system_time_valid():
