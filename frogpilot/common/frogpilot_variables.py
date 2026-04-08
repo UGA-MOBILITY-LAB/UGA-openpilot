@@ -45,6 +45,7 @@ STEERING_TUNE_MAX_FACTOR = 1.5            # Upper bound multiplier for manual st
 STEERING_TUNE_MIN_FACTOR = 0.5            # Lower bound multiplier for manual steering-tune overrides
 TRAFFIC_FOLLOW_MIN = 0.5                  # Minimum following distance for Traffic Mode in seconds
 PLANNER_TIME = ModelConstants.T_IDXS[-1]  # Length of time the model projects out for
+SLOWDOWN_PERCENTAGE = 0.85                # Trigger slowdown when the model predicts speed will drop below 85% of the current speed
 THRESHOLD = 1 - 1 / math.e                # Requires the condition to be true for 0.5 seconds
 
 AOL_BORDER_COLOR = (0x0A, 0xBA, 0xB5, 0xF1)
@@ -449,6 +450,7 @@ class FrogPilotVariables:
     toggle.conditional_curves = self.get_value("CECurves", condition=toggle.conditional_experimental_mode)
     toggle.conditional_curves_lead = self.get_value("CECurvesLead", condition=toggle.conditional_curves)
     toggle.conditional_lead = self.get_value("CELead", condition=toggle.conditional_experimental_mode)
+    toggle.conditional_slowdown = self.get_value("CESlowdown", condition=toggle.conditional_experimental_mode)
     toggle.conditional_slower_lead = self.get_value("CESlowerLead", condition=toggle.conditional_lead)
     toggle.conditional_stopped_lead = self.get_value("CEStoppedLead", condition=toggle.conditional_lead)
     toggle.conditional_limit = self.get_value("CESpeed", cast=float, condition=toggle.conditional_experimental_mode)
