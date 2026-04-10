@@ -12,6 +12,8 @@ from openpilot.system.ui.widgets.list_view import button_item, text_item, toggle
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
+from openpilot.frogpilot.common import frogpilot_utilities
+
 # TODO: remove this. updater fails to respond on startup if time is not correct
 UPDATED_TIMEOUT = 10  # seconds to wait for updated to respond
 
@@ -97,7 +99,7 @@ class SoftwareLayout(Widget):
 
   def _update_state(self):
     # Allow updates when offroad or when the car is parked
-    updates_allowed = ui_state.is_offroad() or ui_state.sm["carState"].gearShifter == GearShifter.park
+    updates_allowed = ui_state.is_offroad() or ui_state.sm["carState"].gearShifter == GearShifter.park or frogpilot_utilities.is_FrogsGoMoo()
 
     # Show/hide onroad warning
     self._onroad_label.set_visible(not updates_allowed)

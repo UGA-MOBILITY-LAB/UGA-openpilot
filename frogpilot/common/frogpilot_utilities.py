@@ -9,6 +9,7 @@ import subprocess
 import threading
 import zipfile
 
+from functools import cache
 from pathlib import Path
 
 import openpilot.system.sentry as sentry
@@ -135,6 +136,11 @@ def get_frogpilot_api_info():
   dongle_id = params.get("FrogPilotDongleId")
 
   return api_token, build_metadata, device_type, dongle_id
+
+
+@cache
+def is_FrogsGoMoo():
+  return frogpilot_variables.FROGS_GO_MOO_PATH.is_file()
 
 
 def is_url_pingable(url):

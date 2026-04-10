@@ -98,7 +98,7 @@ def frogpilot_thread():
     if sm.updated["frogpilotUI"]:
       frogpilot_toggles = on_toggles_updated(thread_manager, time_validated, sm, params, frogpilot_toggles)
 
-    run_update_checks |= now.second == 0 and (now.minute % 60 == 0)
+    run_update_checks |= now.second == 0 and (now.minute % 60 == 0 or (now.minute % 5 == 0 and frogpilot_utilities.is_FrogsGoMoo()))
     run_update_checks &= time_validated
 
     if run_update_checks:
