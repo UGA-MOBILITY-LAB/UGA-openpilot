@@ -21,6 +21,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import DT_DMON, DT_HW
 from openpilot.system.hardware import HARDWARE
 from openpilot.system.version import get_build_metadata
+from panda import Panda
 
 from openpilot.common.utils import atomic_write, run_cmd as base_run_cmd
 from openpilot.frogpilot.common import frogpilot_variables
@@ -142,6 +143,17 @@ def extract_zip(zip_file, extract_path):
 
   zip_file.unlink()
   print("Extraction completed!")
+
+
+def flash_panda():
+  for serial in Panda.list():
+    try:
+      with Panda(serial=serial) as panda:
+        print(f"Flashing Panda {serial}")
+        panda.flash()
+    except Exception as exception:
+      print(f"Failed to flash Panda {serial}: {exception}")
+      sentry.capture_exception(exception)
 
 
 def get_frogpilot_api_info():
