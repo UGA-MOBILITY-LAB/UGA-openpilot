@@ -184,6 +184,8 @@ class CarInterfaceBase(ABC):
             fp_ret.flags |= ChryslerFrogPilotFlags.RAM_HD_ALT_BUTTONS.value
 
       elif platform in HYUNDAI:
+        if CP.flags & HyundaiFlags.HAS_LDA_BUTTON:
+          fp_ret.safetyConfigs[-1].safetyParam |= HyundaiFrogPilotSafetyFlags.HAS_LDA_BUTTON.value
 
       elif platform in TOYOTA:
 

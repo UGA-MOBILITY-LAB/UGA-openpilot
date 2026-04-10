@@ -61,6 +61,10 @@ int cruise_button_prev = 0;
 bool safety_rx_checks_invalid = false;
 
 // FrogPilot variables
+bool aol_allowed = false;
+bool lkas_button_prev = false;
+bool lkas_on = false;
+bool main_button_prev = false;
 
 // for safety modes with torque steering control
 int desired_torque_last = 0;       // last desired steer torque
@@ -220,6 +224,7 @@ bool safety_rx_hook(const CANPacket_t *msg) {
   }
 
   // FrogPilot variables
+  safety_rx_checks_invalid |= whitelisted && !valid;
 
   return valid;
 }
@@ -370,6 +375,7 @@ static void generic_rx_checks(void) {
   steering_disengage_prev = steering_disengage;
 
   // FrogPilot variables
+  aol_allowed = !safety_rx_checks_invalid && !steering_disengage && (acc_main_on || lkas_on) && (alternative_experience & ALT_EXP_ALWAYS_ON_LATERAL);
 }
 
 static void stock_ecu_check(bool stock_ecu_detected) {
@@ -494,6 +500,10 @@ int set_safety_hooks(uint16_t mode, uint16_t param) {
   }
 
   // FrogPilot variables
+  aol_allowed = false;
+  lkas_button_prev = false;
+  lkas_on = false;
+  main_button_prev = false;
 
   return set_status;
 }
