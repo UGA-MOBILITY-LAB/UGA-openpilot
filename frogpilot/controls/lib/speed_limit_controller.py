@@ -201,7 +201,7 @@ class SpeedLimitController:
   def handle_limit_change(self, desired_source, desired_target, sm):
     self.speed_limit_changed_timer += DT_MDL
 
-    speed_limit_accepted = (sm["frogpilotCarState"].accelPressed and sm["carControl"].longActive) or self.frogpilot_planner.params_memory.get_bool("SpeedLimitAccepted")
+    speed_limit_accepted = sm["frogpilotCarState"].accelPressed and sm["carControl"].longActive
     speed_limit_denied = sm["frogpilotCarState"].decelPressed or (self.speed_limit_changed_timer >= 30)
 
     if speed_limit_accepted:
@@ -209,8 +209,6 @@ class SpeedLimitController:
 
       self.source = desired_source
       self.target = desired_target
-
-      self.frogpilot_planner.params_memory.remove("SpeedLimitAccepted")
 
     elif speed_limit_denied:
       self.denied_target = desired_target

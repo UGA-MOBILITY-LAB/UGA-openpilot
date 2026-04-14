@@ -227,7 +227,6 @@ def process_frogpilot_toggles(toggles_json):
 class FrogPilotVariables:
   def __init__(self):
     self.params = Params(return_defaults=True)
-    self.params_memory = Params(memory=True)
 
     self.frogpilot_toggles = SimpleNamespace()
     toggle = self.frogpilot_toggles

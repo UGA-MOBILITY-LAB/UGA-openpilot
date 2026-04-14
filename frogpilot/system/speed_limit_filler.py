@@ -30,7 +30,6 @@ OVERPASS_STATUS_URL = "https://overpass-api.de/api/status"
 class MapSpeedLogger:
   def __init__(self):
     self.params = Params(return_defaults=True)
-    self.params_memory = Params(memory=True)
 
     self.cached_box = None
     self.previous_coordinates = None
@@ -58,7 +57,7 @@ class MapSpeedLogger:
 
   @property
   def should_stop_processing(self):
-    return self.sm["deviceState"].started or not self.params_memory.get_bool("UpdateSpeedLimits")
+    return self.sm["deviceState"].started
 
   @staticmethod
   def cleanup_dataset(dataset):
@@ -270,11 +269,8 @@ class MapSpeedLogger:
         break
 
       if not self.can_make_overpass_request:
-        self.params_memory.put("UpdateSpeedLimitsStatus", "Hit API limit...")
         time.sleep(5)
         break
-
-      self.params_memory.put("UpdateSpeedLimitsStatus", f"Processing: {i + 1} / {total_entries}")
 
       start_coords = entry["start_coordinates"]
       self.update_cached_segments(start_coords["latitude"], start_coords["longitude"])
@@ -320,11 +316,9 @@ class MapSpeedLogger:
 
     if dataset and not self.should_stop_processing:
       self.cached_box, self.cached_segments = None, {}
-      self.params_memory.put("UpdateSpeedLimitsStatus", "Calculating...")
       self.process_new_entries(dataset, filtered_dataset)
 
     self.update_params(dataset, filtered_dataset)
-    self.params_memory.put("UpdateSpeedLimitsStatus", "Completed!")
 
   def update_cached_segments(self, latitude, longitude, vetting=False):
     if not self.is_in_cached_box(latitude, longitude):
@@ -355,12 +349,9 @@ class MapSpeedLogger:
         break
 
       if not self.can_make_overpass_request:
-        self.params_memory.put("UpdateSpeedLimitsStatus", "Hit API limit...")
         time.sleep(5)
         vetted_entries.extend(dataset_list[i:])
         break
-
-      self.params_memory.put("UpdateSpeedLimitsStatus", f"Vetting: {i + 1} / {total_to_vet}")
 
       last_vetted_time = datetime.fromisoformat(entry["last_vetted"])
       if datetime.now(timezone.utc) - last_vetted_time < timedelta(days=VETTING_INTERVAL_DAYS):
@@ -397,15 +388,11 @@ def main():
       logger.params.put("SpeedLimits", list(new_dataset))
 
       if logger.sm["deviceState"].networkType in (NetworkType.ethernet, NetworkType.wifi):
-        logger.params_memory.put_bool("UpdateSpeedLimits", True)
+        logger.process_speed_limits()
 
       logger.dataset_additions.clear()
 
       previously_started = False
-    elif logger.params_memory.get_bool("UpdateSpeedLimits"):
-      logger.process_speed_limits()
-
-      logger.params_memory.remove("UpdateSpeedLimits")
     else:
       time.sleep(5)
 

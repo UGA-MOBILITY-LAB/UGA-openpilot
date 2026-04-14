@@ -85,7 +85,6 @@ class FrogPilotEvents:
 
       if self.random_event_timer >= RANDOM_EVENTS_LENGTH:
         self.theme_manager.update_wheel_image(frogpilot_toggles.wheel_image)
-        self.frogpilot_planner.params_memory.put_bool("UpdateWheelImage", True)
 
         self.random_event_playing = False
         self.random_event_timer = 0
@@ -95,7 +94,6 @@ class FrogPilotEvents:
         self.events.add(FrogPilotEventName.accel30)
 
         self.theme_manager.update_wheel_image("accel30", random_event=True)
-        self.frogpilot_planner.params_memory.put_bool("UpdateWheelImage", True)
 
         self.max_acceleration = 0
 
@@ -103,7 +101,6 @@ class FrogPilotEvents:
         self.events.add(FrogPilotEventName.accel35)
 
         self.theme_manager.update_wheel_image("accel35", random_event=True)
-        self.frogpilot_planner.params_memory.put_bool("UpdateWheelImage", True)
 
         self.max_acceleration = 0
 
@@ -111,7 +108,6 @@ class FrogPilotEvents:
         self.events.add(FrogPilotEventName.accel40)
 
         self.theme_manager.update_wheel_image("accel40", random_event=True)
-        self.frogpilot_planner.params_memory.put_bool("UpdateWheelImage", True)
 
         self.max_acceleration = 0
 
@@ -138,17 +134,14 @@ class FrogPilotEvents:
             self.events.add(FrogPilotEventName.firefoxSteerSaturated)
 
             self.theme_manager.update_wheel_image("firefoxSteerSaturated", random_event=True)
-            self.frogpilot_planner.params_memory.put_bool("UpdateWheelImage", True)
           elif event_choice == "goatSteerSaturated":
             self.events.add(FrogPilotEventName.goatSteerSaturated)
 
             self.theme_manager.update_wheel_image("goatSteerSaturated", random_event=True)
-            self.frogpilot_planner.params_memory.put_bool("UpdateWheelImage", True)
           elif event_choice == "thisIsFineSteerSaturated":
             self.events.add(FrogPilotEventName.thisIsFineSteerSaturated)
 
             self.theme_manager.update_wheel_image("thisIsFineSteerSaturated", random_event=True)
-            self.frogpilot_planner.params_memory.put_bool("UpdateWheelImage", True)
 
       if "vCruise69" not in self.played_events and 70 > max(sm["carState"].vCruise, sm["carState"].vCruiseCluster) * (1 if frogpilot_toggles.is_metric else CV.KPH_TO_MPH) >= 69:
         self.events.add(FrogPilotEventName.vCruise69)

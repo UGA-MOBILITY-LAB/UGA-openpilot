@@ -22,7 +22,6 @@ from opendbc.car.mock.values import CAR as MOCK
 from opendbc.car.toyota.values import CAR as TOYOTA, NO_DSU_CAR, ToyotaFrogPilotFlags
 from opendbc.car.values import PLATFORMS
 from opendbc.can import CANParser
-from openpilot.common.params import Params
 
 GearShifter = structs.CarState.GearShifter
 ButtonType = structs.CarState.ButtonEvent.Type
@@ -119,8 +118,6 @@ class CarInterfaceBase(ABC):
 
     # FrogPilot variables
     self.FPCP = FPCP
-
-    self.params_memory = Params(memory=True)
 
     self.distance_button = 0
 
@@ -315,7 +312,7 @@ class CarInterfaceBase(ABC):
 
     # FrogPilot variables
     prev_distance_button = self.distance_button
-    self.distance_button = self.params_memory.get_bool("OnroadDistanceButtonPressed")
+    self.distance_button = False
     if self.distance_button != prev_distance_button:
       ret.buttonEvents = create_button_events(self.distance_button, prev_distance_button, {1: ButtonType.gapAdjustCruise})
 

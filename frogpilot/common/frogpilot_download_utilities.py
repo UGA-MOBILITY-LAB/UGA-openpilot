@@ -15,7 +15,7 @@ GIF_SIGNATURES = (b"GIF87a", b"GIF89a")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
-def download_file(cancel_param, destination, download_param, params_memory, progress_param, session, url, offset_bytes=0, total_bytes=0):
+def download_file(destination, session, url, offset_bytes=0, total_bytes=0):
   temp_file_path = destination.with_suffix(destination.suffix + ".tmp")
 
   try:
@@ -24,7 +24,7 @@ def download_file(cancel_param, destination, download_param, params_memory, prog
     with session.get(url, stream=True, timeout=10) as response:
       if response.status_code == 404 and url.endswith(".gif"):
         print(f"GIF download failed (404). Attempting fallback to PNG for {destination.name}")
-        return download_file(cancel_param, destination.with_suffix(".png"), download_param, params_memory, progress_param, session, url.replace(".gif", ".png"), offset_bytes, total_bytes)
+        return download_file(destination.with_suffix(".png"), session, url.replace(".gif", ".png"), offset_bytes, total_bytes)
 
       response.raise_for_status()
 
@@ -34,28 +34,11 @@ def download_file(cancel_param, destination, download_param, params_memory, prog
         downloaded_size = 0
 
         for chunk in response.iter_content(chunk_size=16384):
-          if params_memory.get_bool(cancel_param):
-            raise InterruptedError
-
           if not chunk:
             continue
 
           temp_file.write(chunk)
           downloaded_size += len(chunk)
-
-          if total_bytes:
-            overall_progress = (offset_bytes + downloaded_size) / total_bytes * 100
-          elif total_size and total_size > 0:
-            overall_progress = downloaded_size / total_size * 100
-          else:
-            overall_progress = 0
-
-          if total_size is None and not total_bytes:
-            params_memory.put(progress_param, "Downloading...")
-          elif overall_progress < 100:
-            params_memory.put(progress_param, f"{overall_progress:.0f}%")
-          else:
-            params_memory.put(progress_param, "Verifying download...")
 
       temp_file_path.replace(destination)
       return destination, None, False
@@ -124,16 +107,11 @@ def get_repository_sources():
   return repository_sources
 
 
-def handle_error(destination, download_param, error, error_message, params_memory, progress_param):
+def handle_error(destination, error, error_message):
   cleanup_download_target(destination)
 
   if error is not None:
     print(f"Error occurred: {error}")
-
-  if progress_param:
-    params_memory.put(progress_param, error_message)
-  if download_param:
-    params_memory.remove(download_param)
 
 
 def handle_request_error(error):

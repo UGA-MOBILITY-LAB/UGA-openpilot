@@ -91,18 +91,13 @@ private:
 } // namespace
 
 
-Params::Params(const std::string &path, bool memory) {
+Params::Params(const std::string &path) {
   params_prefix = "/" + util::getenv("OPENPILOT_PREFIX", "d");
 
   // FrogPilot variables
-  std::string params_folder;
-  if (memory) {
-    params_folder = "/dev/shm/params";
-  } else {
-    cache_path = "/cache/params" + params_prefix + "/";
-    params_folder = path;
-  }
-  params_path = ensure_params_path(params_prefix, params_folder);
+  cache_path = "/cache/params" + params_prefix + "/";
+
+  params_path = ensure_params_path(params_prefix, path);
 }
 
 Params::~Params() {

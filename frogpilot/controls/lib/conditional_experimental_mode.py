@@ -34,14 +34,13 @@ class ConditionalExperimentalMode:
 
   def update(self, v_ego, sm, frogpilot_toggles):
     if frogpilot_toggles.experimental_mode_via_press:
-      self.status_value = self.frogpilot_planner.params_memory.get("ConditionalExperimentalStatus")
+      self.status_value = CEStatus["OFF"]
     else:
       self.status_value = CEStatus["OFF"]
 
     if self.status_value not in (CEStatus["USER_DISABLED"], CEStatus["USER_OVERRIDDEN"]) and not sm["carState"].standstill:
       self.update_conditions(v_ego, sm, frogpilot_toggles)
       self.experimental_mode = self.check_conditions(v_ego, sm, frogpilot_toggles)
-      self.frogpilot_planner.params_memory.put("ConditionalExperimentalStatus", self.status_value)
     else:
       self.experimental_mode &= sm["carState"].standstill and self.frogpilot_planner.model_stopped
       self.experimental_mode &= self.status_value != CEStatus["USER_DISABLED"]

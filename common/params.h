@@ -44,7 +44,7 @@ struct ParamKeyAttributes {
 
 class Params {
 public:
-  explicit Params(const std::string &path = {}, bool memory = false);
+  explicit Params(const std::string &path = {});
   ~Params();
   // Not copyable.
   Params(const Params&) = delete;

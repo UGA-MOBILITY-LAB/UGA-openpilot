@@ -11,6 +11,7 @@ from cereal import messaging
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
+from openpilot.common.swaglog import cloudlog
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.athena.registration import register
 from openpilot.system.hardware import HARDWARE
@@ -18,6 +19,10 @@ from openpilot.system.hardware import HARDWARE
 from openpilot.frogpilot.assets.theme_manager import ThemeManager
 from openpilot.frogpilot.common import frogpilot_utilities, frogpilot_variables
 from openpilot.frogpilot.common.frogpilot_backups import backup_frogpilot
+
+MAPDIN_DOWNLOAD = 0
+MAPDIN_CANCEL_DOWNLOAD = 27
+MAPD_DOWNLOAD_STARTED_TIMEOUT = 15.0
 
 
 def capture_report(discord_user, report, params, frogpilot_toggles):
@@ -115,8 +120,6 @@ def migrate_params_to_si(params):
 def frogpilot_boot_functions(build_metadata, params):
   migrate_params_to_si(params)
 
-  params_memory = Params(memory=True)
-
   maps_selected = params.get("MapsSelected")
   if maps_selected:
     try:
@@ -133,7 +136,7 @@ def frogpilot_boot_functions(build_metadata, params):
       pass
 
   frogpilot_variables.FrogPilotVariables()
-  ThemeManager(params, params_memory, boot_run=True).update_active_theme(time_validated=system_time_valid(), frogpilot_toggles=frogpilot_variables.get_frogpilot_toggles(), boot_run=True)
+  ThemeManager(params, boot_run=True).update_active_theme(time_validated=system_time_valid(), frogpilot_toggles=frogpilot_variables.get_frogpilot_toggles(), boot_run=True)
 
   if frogpilot_utilities.use_konik_server():
     if params.get("KonikDongleId") is not None:
@@ -236,10 +239,10 @@ def update_boot_logo(frogpilot=False, stock=False):
     frogpilot_utilities.run_cmd(["sudo", "mount", "-o", f"remount,{mount_options}", "/"], "Successfully restored / mount options", "Failed to restore / mount options")
 
 
-def update_maps(now, params, params_memory, manual_update=False):
+def update_maps(now, params, manual_update=False, progress_cb=None, cancel_check=None):
   maps_selected = params.get("MapsSelected")
   if not maps_selected:
-    return
+    return "no_selection"
 
   day = now.day
   is_first = day == 1
@@ -248,13 +251,13 @@ def update_maps(now, params, params_memory, manual_update=False):
 
   maps_downloaded = frogpilot_variables.MAPS_PATH.exists()
   if maps_downloaded and (schedule == 0 or (schedule == 1 and not is_sunday) or (schedule == 2 and not is_first)) and not manual_update:
-    return
+    return "skipped"
 
   suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
   todays_date = now.strftime(f"%B {day}{suffix}, %Y")
 
   if maps_downloaded and params.get("LastMapsUpdate") == todays_date and not manual_update:
-    return
+    return "already_updated"
 
   pm = messaging.PubMaster(["mapdIn"])
   sm = messaging.SubMaster(["mapdExtendedOut"])
@@ -262,34 +265,55 @@ def update_maps(now, params, params_memory, manual_update=False):
   time.sleep(1)
 
   msg = messaging.new_message("mapdIn")
-  msg.mapdIn.type = 0
+  msg.mapdIn.type = MAPDIN_DOWNLOAD
   msg.mapdIn.str = maps_selected
   pm.send("mapdIn", msg)
+  cloudlog.info(f"update_maps: sent download request for {maps_selected!r} (manual={manual_update})")
 
+  sent_at = time.monotonic()
   started = False
+  cancelled = False
+  cancel_sent = False
+  timed_out = False
   while True:
     sm.update(1000)
 
-    if params_memory.get_bool("CancelDownloadMaps"):
-      msg = messaging.new_message("mapdIn")
-      msg.mapdIn.type = 27
-      pm.send("mapdIn", msg)
-
-      params_memory.remove("CancelDownloadMaps")
-      params_memory.remove("DownloadMaps")
-      return
+    if cancel_check is not None and cancel_check() and not cancel_sent:
+      cancel_msg = messaging.new_message("mapdIn")
+      cancel_msg.mapdIn.type = MAPDIN_CANCEL_DOWNLOAD
+      pm.send("mapdIn", cancel_msg)
+      cancel_sent = True
+      cloudlog.info("update_maps: cancel requested")
 
     if sm.updated["mapdExtendedOut"]:
       progress = sm["mapdExtendedOut"].downloadProgress
 
+      if progress_cb is not None:
+        progress_cb(progress)
+
       if progress.active:
         started = True
 
-      if not progress.active and started:
+      if progress.cancelled:
+        cancelled = True
+
+      if not progress.active and (started or cancel_sent):
         break
 
-  params.put("LastMapsUpdate", todays_date)
-  params_memory.remove("DownloadMaps")
+    if not started and not cancel_sent and (time.monotonic() - sent_at) > MAPD_DOWNLOAD_STARTED_TIMEOUT:
+      cloudlog.warning(f"update_maps: mapd did not start download within {MAPD_DOWNLOAD_STARTED_TIMEOUT}s; aborting")
+      timed_out = True
+      break
+
+  if not cancelled and not timed_out:
+    params.put("LastMapsUpdate", todays_date)
+    cloudlog.info(f"update_maps: completed, LastMapsUpdate={todays_date}")
+    return "ok"
+
+  cloudlog.info(f"update_maps: finished without writing timestamp (cancelled={cancelled}, timed_out={timed_out})")
+  if timed_out:
+    return "timed_out"
+  return "cancelled"
 
 
 def update_openpilot(thread_manager, params):

@@ -143,8 +143,6 @@ def manager_thread() -> None:
   # FrogPilot variables
   sm = sm.extend(['frogpilotUI'])
 
-  params_memory = Params(memory=True)
-
   frogpilot_toggles = frogpilot_variables.get_frogpilot_toggles()
 
   while True:
@@ -155,20 +153,12 @@ def manager_thread() -> None:
     if started and not started_prev and not frogpilot_toggles.force_onroad:
       params.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
 
-      # FrogPilot variables
-      params_memory.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
     elif not started and started_prev:
       params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
-
-      # FrogPilot variables
-      params_memory.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
 
     ignition = any(ps.ignitionLine or ps.ignitionCan for ps in sm['pandaStates'] if ps.pandaType != log.PandaState.PandaType.unknown)
     if ignition and not ignition_prev:
       params.clear_all(ParamKeyFlag.CLEAR_ON_IGNITION_ON)
-
-      # FrogPilot variables
-      params_memory.clear_all(ParamKeyFlag.CLEAR_ON_IGNITION_ON)
 
     # update onroad params, which drives pandad's safety setter thread
     if started != started_prev:
