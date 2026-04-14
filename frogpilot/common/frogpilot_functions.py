@@ -16,7 +16,6 @@ from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.athena.registration import register
 from openpilot.system.hardware import HARDWARE
 
-from openpilot.frogpilot.assets.theme_manager import ThemeManager
 from openpilot.frogpilot.common import frogpilot_utilities, frogpilot_variables
 from openpilot.frogpilot.common.frogpilot_backups import backup_frogpilot
 
@@ -136,7 +135,6 @@ def frogpilot_boot_functions(build_metadata, params):
       pass
 
   frogpilot_variables.FrogPilotVariables()
-  ThemeManager(params, boot_run=True).update_active_theme(time_validated=system_time_valid(), frogpilot_toggles=frogpilot_variables.get_frogpilot_toggles(), boot_run=True)
 
   if frogpilot_utilities.use_konik_server():
     if params.get("KonikDongleId") is not None:

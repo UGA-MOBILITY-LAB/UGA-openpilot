@@ -16,9 +16,8 @@ RANDOM_EVENT_START = FrogPilotEventName.accel30
 RANDOM_EVENT_END = FrogPilotEventName.youveGotMail
 
 class FrogPilotEvents:
-  def __init__(self, FrogPilotPlanner, error_log, ThemeManager):
+  def __init__(self, FrogPilotPlanner, error_log):
     self.frogpilot_planner = FrogPilotPlanner
-    self.theme_manager = ThemeManager
 
     self.events = Events(frogpilot=True)
 
@@ -84,8 +83,6 @@ class FrogPilotEvents:
       self.random_event_timer += DT_MDL
 
       if self.random_event_timer >= RANDOM_EVENTS_LENGTH:
-        self.theme_manager.update_wheel_image(frogpilot_toggles.wheel_image)
-
         self.random_event_playing = False
         self.random_event_timer = 0
 
@@ -93,21 +90,15 @@ class FrogPilotEvents:
       if "accel30" not in self.played_events and 3.5 > self.max_acceleration >= 3.0 and acceleration < 1.5:
         self.events.add(FrogPilotEventName.accel30)
 
-        self.theme_manager.update_wheel_image("accel30", random_event=True)
-
         self.max_acceleration = 0
 
       elif "accel35" not in self.played_events and 4.0 > self.max_acceleration >= 3.5 and acceleration < 1.5:
         self.events.add(FrogPilotEventName.accel35)
 
-        self.theme_manager.update_wheel_image("accel35", random_event=True)
-
         self.max_acceleration = 0
 
       elif "accel40" not in self.played_events and self.max_acceleration >= 4.0 and acceleration < 1.5:
         self.events.add(FrogPilotEventName.accel40)
-
-        self.theme_manager.update_wheel_image("accel40", random_event=True)
 
         self.max_acceleration = 0
 
@@ -132,16 +123,10 @@ class FrogPilotEvents:
 
           if event_choice == "firefoxSteerSaturated":
             self.events.add(FrogPilotEventName.firefoxSteerSaturated)
-
-            self.theme_manager.update_wheel_image("firefoxSteerSaturated", random_event=True)
           elif event_choice == "goatSteerSaturated":
             self.events.add(FrogPilotEventName.goatSteerSaturated)
-
-            self.theme_manager.update_wheel_image("goatSteerSaturated", random_event=True)
           elif event_choice == "thisIsFineSteerSaturated":
             self.events.add(FrogPilotEventName.thisIsFineSteerSaturated)
-
-            self.theme_manager.update_wheel_image("thisIsFineSteerSaturated", random_event=True)
 
       if "vCruise69" not in self.played_events and 70 > max(sm["carState"].vCruise, sm["carState"].vCruiseCluster) * (1 if frogpilot_toggles.is_metric else CV.KPH_TO_MPH) >= 69:
         self.events.add(FrogPilotEventName.vCruise69)

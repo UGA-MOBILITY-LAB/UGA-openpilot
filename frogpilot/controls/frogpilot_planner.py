@@ -18,12 +18,12 @@ from openpilot.frogpilot.controls.lib.frogpilot_vcruise import FrogPilotVCruise
 from openpilot.frogpilot.controls.lib.weather_checker import WeatherChecker
 
 class FrogPilotPlanner:
-  def __init__(self, error_log, ThemeManager):
+  def __init__(self, error_log):
     self.params = Params(return_defaults=True)
 
     self.frogpilot_acceleration = FrogPilotAcceleration(self)
     self.frogpilot_cem = ConditionalExperimentalMode(self)
-    self.frogpilot_events = FrogPilotEvents(self, error_log, ThemeManager)
+    self.frogpilot_events = FrogPilotEvents(self, error_log)
     self.frogpilot_following = FrogPilotFollowing(self)
     self.frogpilot_vcruise = FrogPilotVCruise(self)
     self.frogpilot_weather = WeatherChecker(self)
@@ -122,7 +122,7 @@ class FrogPilotPlanner:
     self.tracking_lead_filter.update(following_lead)
     return self.tracking_lead_filter.x >= frogpilot_variables.THRESHOLD
 
-  def publish(self, theme_updated, sm, pm, frogpilot_toggles):
+  def publish(self, sm, pm, frogpilot_toggles):
     frogpilot_plan_send = messaging.new_message("frogpilotPlan")
     frogpilot_plan_send.valid = sm.all_checks(service_list=["carState", "controlsState", "selfdriveState", "radarState"])
     frogpilotPlan = frogpilot_plan_send.frogpilotPlan
@@ -174,8 +174,6 @@ class FrogPilotPlanner:
     frogpilotPlan.slcSpeedLimitSource = self.frogpilot_vcruise.slc.source
     frogpilotPlan.speedLimitChanged = self.frogpilot_vcruise.slc.speed_limit_changed_timer > DT_MDL
     frogpilotPlan.unconfirmedSlcSpeedLimit = self.frogpilot_vcruise.slc.unconfirmed_speed_limit
-
-    frogpilotPlan.themeUpdated = theme_updated
 
     frogpilotPlan.vCruise = float(self.v_cruise)
 
