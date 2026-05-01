@@ -169,7 +169,7 @@ class SelfdriveD:
 
     if self.frogpilot_toggles.block_user:
       self.startup_event = FrogPilotEventName.blockUser
-      sentry.capture_block()
+      sentry.capture_message("Blocked user from using the development branch", level="info")
 
   def update_events(self, CS):
     """Compute onroadEvents from carState"""
