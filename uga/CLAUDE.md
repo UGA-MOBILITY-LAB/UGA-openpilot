@@ -85,36 +85,58 @@ python3 -c "from openpilot.common.params import Params; Params().put('MapboxSecr
 - navd（如果 token 配好）
 - ui
 
-### D. 喂视频给 modeld（关键工程）
+### D. 喂数据给 modeld
 
-modeld 通过 **VisionIPC**（共享内存 + YUV NV12）从 `camerad` 进程接收图像。FrogPilot 删了 `tools/sim/` 和 `tools/replay/`，所以没有现成工具——已写在 `uga/tools/video_to_vipc.py`。
+modeld 通过 **VisionIPC**（共享内存 + YUV NV12）从 `camerad` 进程接收图像。FrogPilot 删了 `tools/sim/` 和 `tools/replay/`，所以没有现成工具，自己写在 `uga/tools/` 下。两个版本对应不同输入：
 
-实现要点（参考 commaai 上游的 `tools/webcam/camerad.py`）：
-- PyAV 解码视频 → reformat 为 NV12 → `VisionIpcServer.send` 推到 ROAD_CAMERA
-- 同步 cereal `roadCameraState` 消息（frameId + timestampSof/Eof + identity transform）
-- 默认 1928×1208 @ 20 Hz；视频原帧率会被强制下采到 20 fps
+| 工具 | 输入 | 用途 |
+|---|---|---|
+| `video_to_vipc.py` | mp4/mkv 等视频文件 | 手机随手录的 dashcam，最快跑通 PC 管线 |
+| `ros_image_to_vipc.py` | ROS 2 `sensor_msgs/Image` | rosbag 回放 OR live 实车 ds_video_gst（推荐） |
+
+**`ros_image_to_vipc.py` 是 Step 1 + Step 2 的核心代码**：
+- 订阅 `/camera/image_rect`（BAYER_RG_8 2448×2048 @ 5 Hz）
+- cv2 demosaic → BGR → PyAV reformat → NV12 1928×1208
+- VisionIpcServer 推 ROAD + WIDE_ROAD（mock 双目）
+- cereal `roadCameraState` 同步发布
+- `--upsample 4` 把 5 Hz 升到 20 Hz（重复帧 + 50ms 间隔合成时间戳）
+
+跑通 rosbag 模式后，**Step 2 = 同样代码加 `--live` 接车上的 ds_video_gst**，几乎免费。
 
 **已知限制（在 Nuvo 上跑后再修）**：
-- 不发 `liveCalibration` —— 期望 manager 自己跑 calibrationd；如不跑，modeld 会卡在等校准，需自己 mock liveCalibration
-- transform 是 identity（dashcam 朝前装通常对的）
-- 时间戳是从 frame_id 合成的，不是真传感器 SOF/EOF—— 应该够 modeld 用
+- 不发 `liveCalibration` —— 期望 manager 跑 calibrationd；不跑则 modeld 卡等
+- transform 是 identity；Mach-E 的 Lucid 朝前装，第一次跑应该 OK
+- 时间戳：mp4 模式合成；rosbag 模式用 `msg.header.stamp` 但 upsample 时合成 sub-frame 时间戳
+- 重复帧 4× 让 model 看同帧 4 次，可能干扰 temporal dynamics——长期应该把 Lucid 调到 20 Hz 原生
 
 ### D'. 一键启动: `uga/launch/op_pc_run.sh`
 
-封装 D + C：先后台启动 video_to_vipc 推帧，再前台跑 `launch_chffrplus.sh`。`Ctrl-C` 同时退出。
+三种模式：
 
 ```bash
-./uga/launch/op_pc_run.sh ~/dashcam_test.mp4
+./uga/launch/op_pc_run.sh ~/dashcam_test.mp4          # mp4 模式
+./uga/launch/op_pc_run.sh --rosbag ~/recorded_bag     # rosbag 模式 (推荐 Step 1)
+./uga/launch/op_pc_run.sh --live                      # live 实车 (Step 2/5)
 ```
 
-注意：脚本会先把 `IsDriverViewEnabled` param 强制设为 false，避免 manager 启动真 `camerad` 跟我们的 fake VisionIPC server 冲突（real camerad 由 `system/manager/process_config.py:driverview` 条件控制，driverview = started OR IsDriverViewEnabled）。
+脚本会先把 `IsDriverViewEnabled` param 强制设为 false，避免 manager 启动真 `camerad` 跟我们的 fake VisionIPC server 冲突（real camerad 由 `system/manager/process_config.py:driverview` 条件控制，driverview = started OR IsDriverViewEnabled）。
 
-### E. 录 dashcam 视频
+rosbag/live 模式下脚本会自动 `source /opt/ros/humble/setup.bash` 让 rclpy 可用。
 
-mache 校园开 20-30 分钟，1080p@30fps（手机/GoPro 都行），保存到 `~/dashcam_test.mp4`。注意：
-- modeld 期望帧率 ~20 Hz，30 fps 可以下采
-- 分辨率最终要 crop/resize 到 1928×1208（YUV）
-- camera intrinsics 要伪造（focal length / principal point），第一次跑可以用 commaai default 然后看 model 输出是否合理
+### E. 数据采集
+
+**rosbag 模式（推荐）**：在车上启动 UGA-AUTOWARE 的 `ros2 launch uga devices.launch.xml` 让 ds_video_gst + IMU + GPS 都跑起来，然后：
+
+```bash
+ros2 bag record /camera/image_rect      # 最小:只录相机
+# 或更全(以后 Step 3.5 雷达接入会需要):
+ros2 bag record /camera/image_rect /front_radar/* /rear_radar/* \
+  /sensing/imu/imu_data /vehicle/dbw_enabled
+```
+
+mache 内开 20-30 分钟，包括直道 + 弯道 + 路口 + 有车流。bag 是个目录（`recorded_bag/metadata.yaml + *.db3`）。
+
+**mp4 模式（fallback）**：手机/GoPro 1080p@30fps，存 `~/dashcam_test.mp4`。比 rosbag 弱：跟实战 Lucid 分辨率/格式/视场角不同；不能用作 Step 2 验证。
 
 ### F. 验证
 
@@ -138,8 +160,12 @@ while True:
 
 见 plan 文件 `/home/haohua/.claude/plans/openpilot-mech-e-uga-autoware-cryptic-parrot.md`：
 
-- **Step 2**: Lucid 相机 → openpilot VisionIPC（实时）
-- **Step 3**: Mach-E + Dataspeed 控制 port（Bridge 方案：cereal `carControl` → ROS 2 → Dataspeed）
+- **Step 2**: 同样的 `ros_image_to_vipc.py` 代码加 `--live`，接车上的 ds_video_gst 实时流。Step 1 跑通 rosbag 后，Step 2 几乎免费
+- **Step 3**: Mach-E + Dataspeed 控制 port（Bridge 方案：cereal `carControl` → ROS 2 → Dataspeed `UlcCmd` + `SteeringCmd`，复用 `UGA-AUTOWARE/dataspeed_mache_interface/vehicle_interface_node.py:144-260` 的转换逻辑）
+- **Step 3.5**: ARS408 雷达接入。Continental ARS408 → ROS 2（UGA-AUTOWARE 已有 driver）→ `ros_radar_to_cereal` 桥接 → openpilot `radarState` (`leadOne`/`leadTwo`)。
+  - 上游 openpilot Ford 假设 stock Ford 雷达（`opendbc/dbc/FORD_CADS.dbc`），跟 ARS408 协议不通，必须自己写桥接
+  - openpilot 0.10+ model 不再吃雷达输入，但 `radard` 仍用雷达给 ACC 提供 lead tracking（vision-only 在远距/雨雾不稳）
+  - 工程量：1-2 周。在 Step 5 之前接，让实车 ACC 一上来就稳
 - **Step 4**: NOO 在 PC 端跑起来（UI 适配 + Mapbox 设目的地）
 - **Step 5**: 实车测试（mache 校园 stationary → 慢速 lateral → NOO 短路径）
 

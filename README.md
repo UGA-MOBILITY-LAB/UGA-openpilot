@@ -18,11 +18,20 @@ tools/op.sh setup    # ARM-only 包失败可 skip
 # 3. 配 Mapbox token（首次。token 你自己保管,不要 commit）
 python3 -c "from openpilot.common.params import Params; Params().put('MapboxSecretKey', 'pk.YOUR_TOKEN_HERE')"
 
-# 4. 准备 dashcam 视频（首次。如已录则跳过）
-#    手机/GoPro mache 校园开 20-30min, 1080p@30fps, 存 ~/dashcam_test.mp4
+# 4. 准备数据(任选一)
+#  4a. 推荐: rosbag(真 Lucid 数据, Step 1+2 同时验证)
+#    在车上 / 静止状态: ros2 bag record /camera/image_rect (mache 内开 20-30 min)
+#    存到 ~/recorded_bag/  (rosbag2 是个目录,里面有 metadata.yaml + .db3)
+#
+#  4b. 退而求其次: 手机/GoPro 录的 mp4(只测 PC 管线,跳过 BAYER demosaic)
+#    1080p@30fps, 存到 ~/dashcam_test.mp4
 
 # 5. 跑！
-./uga/launch/op_pc_run.sh ~/dashcam_test.mp4
+./uga/launch/op_pc_run.sh --rosbag ~/recorded_bag       # 模式 4a (推荐)
+# 或
+./uga/launch/op_pc_run.sh ~/dashcam_test.mp4            # 模式 4b
+# 或(实车 stationary, ds_video_gst 已起):
+./uga/launch/op_pc_run.sh --live
 ```
 
 ## 在另一个终端验证 model 输出
@@ -48,25 +57,27 @@ while True:
 
 1. `./uga/launch/op_pc_run.sh ...` 启动后的完整 stderr/stdout
 2. `tools/op.sh setup` 装依赖时哪些包失败
-3. modeld 是否启动了 → `pgrep -af modeld`
-4. video_to_vipc 是否在跑 → `pgrep -af video_to_vipc`
+3. 进程是否在跑 → `pgrep -af 'modeld|ros_image_to_vipc|video_to_vipc|ros2 bag'`
+4. `ros2 topic hz /camera/image_rect`（rosbag 模式下应该有数据）
 5. `~/.comma/log/` 或 manager 的 log 路径下最新 log
 
 ## 当前进度
 
 - [x] **Step 0**: Fork FrogPilot, clone, uga-main 分支
-- [x] **Step 1 (这边)**: 写 `uga/tools/video_to_vipc.py` + `uga/launch/op_pc_run.sh`
-- [ ] **Step 1 (Nuvo 上)**: 实测 modeld 跑通，输出合理 modelV2  ← **下次调车做这个**
-- [ ] **Step 2**: Lucid 相机实时桥接（替换 dashcam 视频）
-- [ ] **Step 3**: Mach-E + Dataspeed 控制 port (Bridge 方案)
+- [x] **Step 1 写代码**: `uga/tools/{video,ros_image}_to_vipc.py` + `uga/launch/op_pc_run.sh`
+- [ ] **Step 1 Nuvo 实测**: 用 rosbag 跑通 modeld，输出合理 modelV2  ← **下次调车做这个**
+- [ ] **Step 2**: 同样代码接 live `/camera/image_rect`（车 stationary 接 ds_video_gst）。Step 1 通了基本免费
+- [ ] **Step 3**: Mach-E + Dataspeed 控制 port（Bridge 方案，复用 vehicle_interface_node 转换逻辑）
+- [ ] **Step 3.5**: ARS408 雷达接入 → openpilot `radarState`（增强 ACC，特别远距 lead 跟踪）
 - [ ] **Step 4**: NOO 在 PC 上跑通，能设目的地拿 turn-by-turn
-- [ ] **Step 5**: 实车测试 (mache 校园, 监督下)
+- [ ] **Step 5**: 实车测试（mache 校园，驾驶员监督下）
 
 ## 已知风险
 
-1. **Mach-E 是单目相机**，FrogPilot model 期望双目。`video_to_vipc.py --wide` mock 同帧让 model 能跑；wide-FOV 依赖功能（远处 leads / 横向目标 / 分岔选边）会 degrade。Step 5 实测后再决定加二号相机
+1. **Mach-E 是单目相机**，FrogPilot model 硬性期望双目。`--wide` mock 同帧让 model 能跑；wide-FOV 依赖功能（远处 leads / 横向目标 / 分岔选边）会 degrade。Step 5 实测后再决定加二号相机
 2. **Mach-E port 是 stock Ford 路径**（PCM/PSCM via stock ADAS），跟你的 Dataspeed 不通，Step 3 必做
 3. **PC 路线小众**，FrogPilot 主要 target Comma 3X，要踩坑
+4. **雷达暂用 vision-only**（Step 3.5 之前）：低速 ACC 够用，高速 / 雨雾 / 夜可能不稳。Continental ARS408 跟 openpilot 期望的 stock Ford 雷达（FORD_CADS.dbc）协议不通，要写桥接
 
 完整技术上下文 / 决策记录 / step-by-step → [`uga/CLAUDE.md`](uga/CLAUDE.md)
 
