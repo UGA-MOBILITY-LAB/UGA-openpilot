@@ -1,3 +1,79 @@
+# UGA-openpilot — Mach-E 调车清单
+
+> Fork 自 [FrogAi/FrogPilot](https://github.com/FrogAi/FrogPilot)，目标在 Mach-E + Nuvo PC 上复刻 [Bilibili BV11x421Q7VP](https://www.bilibili.com/video/BV11x421Q7VP/) 的 L2 ADAS + NOO 效果。完整背景见 [`uga/CLAUDE.md`](uga/CLAUDE.md)。**驾驶员必须始终监督；这不是 L4。**
+
+## 上车前(在 Nuvo 上)按顺序跑
+
+```bash
+# 0. 在 Nuvo 上 clone（如果还没）
+cd ~ && git clone git@github.com:UGA-MOBILITY-LAB/UGA-openpilot.git
+cd ~/UGA-openpilot
+
+# 1. 拉最新（每次调车前都跑这个）
+git pull --rebase origin uga-main
+
+# 2. 装依赖（首次 + 上游有大改时跑）
+tools/op.sh setup    # ARM-only 包失败可 skip
+
+# 3. 配 Mapbox token（首次。token 你自己保管,不要 commit）
+python3 -c "from openpilot.common.params import Params; Params().put('MapboxSecretKey', 'pk.YOUR_TOKEN_HERE')"
+
+# 4. 准备 dashcam 视频（首次。如已录则跳过）
+#    手机/GoPro mache 校园开 20-30min, 1080p@30fps, 存 ~/dashcam_test.mp4
+
+# 5. 跑！
+./uga/launch/op_pc_run.sh ~/dashcam_test.mp4
+```
+
+## 在另一个终端验证 model 输出
+
+```bash
+cd ~/UGA-openpilot
+python3 -c "
+from cereal.messaging import SubMaster
+sm = SubMaster(['modelV2'])
+while True:
+    sm.update(1000)
+    if sm.updated['modelV2']:
+        m = sm['modelV2']
+        print(f'frame={m.frameId} laneLines={len(m.laneLines)} leads={len(m.leadsV3)}')
+"
+```
+
+期望：消息 ≥ 5 Hz，laneLines = 4。
+
+## 出错时
+
+把以下内容贴回 Claude（任一就行，越多越好）：
+
+1. `./uga/launch/op_pc_run.sh ...` 启动后的完整 stderr/stdout
+2. `tools/op.sh setup` 装依赖时哪些包失败
+3. modeld 是否启动了 → `pgrep -af modeld`
+4. video_to_vipc 是否在跑 → `pgrep -af video_to_vipc`
+5. `~/.comma/log/` 或 manager 的 log 路径下最新 log
+
+## 当前进度
+
+- [x] **Step 0**: Fork FrogPilot, clone, uga-main 分支
+- [x] **Step 1 (这边)**: 写 `uga/tools/video_to_vipc.py` + `uga/launch/op_pc_run.sh`
+- [ ] **Step 1 (Nuvo 上)**: 实测 modeld 跑通，输出合理 modelV2  ← **下次调车做这个**
+- [ ] **Step 2**: Lucid 相机实时桥接（替换 dashcam 视频）
+- [ ] **Step 3**: Mach-E + Dataspeed 控制 port (Bridge 方案)
+- [ ] **Step 4**: NOO 在 PC 上跑通，能设目的地拿 turn-by-turn
+- [ ] **Step 5**: 实车测试 (mache 校园, 监督下)
+
+## 已知风险
+
+1. **Mach-E 是单目相机**，FrogPilot model 期望双目。`video_to_vipc.py --wide` mock 同帧让 model 能跑；wide-FOV 依赖功能（远处 leads / 横向目标 / 分岔选边）会 degrade。Step 5 实测后再决定加二号相机
+2. **Mach-E port 是 stock Ford 路径**（PCM/PSCM via stock ADAS），跟你的 Dataspeed 不通，Step 3 必做
+3. **PC 路线小众**，FrogPilot 主要 target Comma 3X，要踩坑
+
+完整技术上下文 / 决策记录 / step-by-step → [`uga/CLAUDE.md`](uga/CLAUDE.md)
+
+---
+
+# Upstream FrogPilot README（保留作参考）
+
 <div align="center" style="text-align: center;">
 
 <h1>openpilot</h1>
