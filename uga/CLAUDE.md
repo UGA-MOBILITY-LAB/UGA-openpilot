@@ -55,11 +55,23 @@ tools/op.sh setup       # PC 模式，自动跳过 ARM-only 依赖
 
 留意 `tools/op.sh` 在 PC 上的安装日志，记下 ARM-only 失败包（如 qcom/agnos 相关）—— 这些可以 skip。
 
-### B. 申请 Mapbox token（NOO 需要）
+### B. 配置 Mapbox token（NOO 需要）
 
-去 https://account.mapbox.com/access-tokens/ 申请免费 token。用法（任选一）：
-- env var: `export MAPBOX_TOKEN=pk.xxx`
-- 或 param: `params.put("MapboxSecretKey", "pk.xxx")`
+申请：https://account.mapbox.com/access-tokens/ （免费层够用，使用 public token，前缀 `pk.`）。
+
+**重要：token 不要 commit 到这个 public 仓库**，下面三种本地存储方式任选一种：
+
+```bash
+# 方式 1: 环境变量（每次终端要重新 export 或写进 .bashrc 不入仓的部分）
+export MAPBOX_TOKEN=pk.your_token_here
+
+# 方式 2: openpilot params（持久化，存在 ~/.comma/params 之类的本地数据库）
+python3 -c "from openpilot.common.params import Params; Params().put('MapboxSecretKey', 'pk.your_token_here')"
+
+# 方式 3: ~/.config 之类的非追踪文件（自定义脚本读取，灵活）
+```
+
+`selfdrive/navd/navd.py:57-63` 优先读 `MAPBOX_TOKEN` 环境变量，再读 `MapboxSecretKey` param。FrogPilot 多个组件（speed_limit_controller、UI settings）都读 `MapboxSecretKey`，**长期推荐方式 2**。
 
 ### C. 启动 manager（PC 自动模式）
 
@@ -75,14 +87,27 @@ tools/op.sh setup       # PC 模式，自动跳过 ARM-only 依赖
 
 ### D. 喂视频给 modeld（关键工程）
 
-modeld 通过 **VisionIPC**（共享内存 + YUV NV12）从 `camerad` 进程接收图像。FrogPilot 删了 `tools/sim/` 和 `tools/replay/`，所以**没有现成的"视频喂 modeld"工具**，要自己写。
+modeld 通过 **VisionIPC**（共享内存 + YUV NV12）从 `camerad` 进程接收图像。FrogPilot 删了 `tools/sim/` 和 `tools/replay/`，所以没有现成工具——已写在 `uga/tools/video_to_vipc.py`。
 
-参考资料：
-- VisionIPC Python binding: `msgq_repo/msgq/visionipc/__init__.py`
-- camerad C++ 实现: `system/camerad/main.cc`
-- 学习 VisionIPC API: `system/camerad/snapshot/snapshot.py`（reader 例子）
+实现要点（参考 commaai 上游的 `tools/webcam/camerad.py`）：
+- PyAV 解码视频 → reformat 为 NV12 → `VisionIpcServer.send` 推到 ROAD_CAMERA
+- 同步 cereal `roadCameraState` 消息（frameId + timestampSof/Eof + identity transform）
+- 默认 1928×1208 @ 20 Hz；视频原帧率会被强制下采到 20 fps
 
-**TODO（未实现）**：`uga/tools/video_to_vipc.py` —— 用 ffmpeg/opencv 解码 MP4 → NV12 → VisionIpcServer 推到 ROAD_CAMERA stream。
+**已知限制（在 Nuvo 上跑后再修）**：
+- 不发 `liveCalibration` —— 期望 manager 自己跑 calibrationd；如不跑，modeld 会卡在等校准，需自己 mock liveCalibration
+- transform 是 identity（dashcam 朝前装通常对的）
+- 时间戳是从 frame_id 合成的，不是真传感器 SOF/EOF—— 应该够 modeld 用
+
+### D'. 一键启动: `uga/launch/op_pc_run.sh`
+
+封装 D + C：先后台启动 video_to_vipc 推帧，再前台跑 `launch_chffrplus.sh`。`Ctrl-C` 同时退出。
+
+```bash
+./uga/launch/op_pc_run.sh ~/dashcam_test.mp4
+```
+
+注意：脚本会先把 `IsDriverViewEnabled` param 强制设为 false，避免 manager 启动真 `camerad` 跟我们的 fake VisionIPC server 冲突（real camerad 由 `system/manager/process_config.py:driverview` 条件控制，driverview = started OR IsDriverViewEnabled）。
 
 ### E. 录 dashcam 视频
 
