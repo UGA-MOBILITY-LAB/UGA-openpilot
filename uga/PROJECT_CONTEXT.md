@@ -146,10 +146,15 @@ while True:
 ## 已知坑 / 风险
 
 1. **PC 路线小众**：FrogPilot 主要 target Comma 3X，PC 端 setup 没有官方文档支持，要踩坑
-2. **`tools/sim` 没了**：要么从 commaai 上游 cherry-pick 旧的 metadrive/CARLA bridge，要么自己写 video_to_vipc
+2. **`tools/sim` 没了**：自己写 video_to_vipc（已实现，见上）
 3. **Lucid 5 Hz vs 期望 20 Hz**：要么调相机帧率，要么软件补帧（短期补帧，长期调相机）
 4. **UI 假设触摸屏**：FrogPilot Qt UI 在 PC 上能跑但要鼠标操作；NOO 设目的地可能需要 CLI 替代
 5. **Mach-E port 是 stock Ford**：`opendbc/opendbc/car/ford/values.py:146` 走的是 stock Ford ADAS，**不是 Dataspeed**。Step 3 要做控制 port
+6. **Mach-E 单目 vs FrogPilot model 期望双目**：`selfdrive/modeld/modeld.py:87,113-114` 硬性要求 `input_imgs` (narrow) + `big_input_imgs` (wide) 两个图像输入。Mach-E 上只有 Lucid TRI051S-C 一个相机。
+   - **当前对策**：`video_to_vipc.py --wide` 把同一帧 mock 推到 ROAD + WIDE_ROAD 两个 stream，让 model 能跑
+   - **预期 degradation**：lane keep / 直道车道保持影响小；wide 镜头主管的远处 leads + 周边/横向目标 + 变道决策 严重退化
+   - **对视频效果的影响**：NOO 在分岔路口"选边"是视频核心能力，强依赖 wide camera。单目 mock 可能达不到视频效果
+   - **后续选项**：先 mock 同帧跑通验证管线 → 实测后决定 (a) 加第二个 wide-FOV 相机 (b) 退而求其次只做 lane-keep
 
 ## 同级仓库交叉引用
 
